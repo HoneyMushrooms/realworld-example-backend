@@ -2,15 +2,19 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { CreateArticleDto } from './dto/createArticle.dto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ArticleEntity } from './entity/article.entity';
-import { Repository } from 'typeorm';
+import { DeleteResult, Repository } from 'typeorm';
 import { UserEntity } from 'src/user/entity/user.entity';
 import slugify from 'slugify';
 import { IArticleResponse } from './types/articleResponse.interface';
 import { UpdateArticleDto } from './dto/updateArticle.dto';
+import { CommentEntity } from './entity/comment.entity';
+import { CreateCommentDto } from './dto/createComment.dto';
+import { ICommentResponse } from './types/commentResponse.inteface';
 
 @Injectable()
 export class ArticleService {
@@ -19,9 +23,11 @@ export class ArticleService {
     private articleRepository: Repository<ArticleEntity>,
     @InjectRepository(UserEntity)
     private userRepository: Repository<UserEntity>,
+    @InjectRepository(CommentEntity)
+    private commentRepository: Repository<CommentEntity>,
   ) {}
 
-  async findAll(
+  async findAllArticle(
     queryParams: any,
     userId?: number,
   ): Promise<{ articles: ArticleEntity[]; articlesCount: number }> {
@@ -90,7 +96,7 @@ export class ArticleService {
     return this.articleRepository.findOneBy({ slug });
   }
 
-  async deleteArticle(userId: number, slug: string) {
+  async deleteArticle(userId: number, slug: string): Promise<DeleteResult> {
     const article = await this.findArcileBySlag(slug);
 
     if (!article) {
@@ -101,7 +107,7 @@ export class ArticleService {
       throw new ForbiddenException();
     }
 
-    await this.articleRepository.delete({ slug });
+    return this.articleRepository.delete({ slug });
   }
 
   async updateArcile(
@@ -178,18 +184,71 @@ export class ArticleService {
     return article;
   }
 
+  async createComment(
+    createCommentDto: CreateCommentDto,
+    user: UserEntity,
+    slug: string,
+  ): Promise<CommentEntity> {
+    const article = await this.findArcileBySlag(slug);
+    const newComment = this.commentRepository.create(createCommentDto);
+    newComment.author = user;
+    newComment.article = article;
+    
+    return this.commentRepository.save(newComment);
+  }
+  
+  async deleteComment(
+    userId: number,
+    commentId: number,
+  ): Promise<DeleteResult> {
+    const comment = await this.commentRepository.findOneBy({ id: commentId });
+
+    if(!comment) {
+      throw new NotFoundException();
+    }
+
+    if(comment.author.id !== userId) {
+      throw new UnauthorizedException();
+    }
+
+    return this.commentRepository.delete({ id: commentId });
+  }
+
+  async findAllComment(slug: string) {
+    const article = await this.articleRepository.findOne({
+      where: { slug },
+      relations: { comments: true },
+    });
+
+    article.comments = article.comments.map((comment) =>
+      this.serialization(comment),
+    );
+
+    return { comments: article.comments };
+  }  
+
   buildArticleResponse(article: ArticleEntity): IArticleResponse {
     article = this.serialization(article);
 
     return { article };
   }
 
-  serialization(article: ArticleEntity) {
-    delete article.id;
-    delete article.author.id;
-    delete article.author.email;
-    delete article.author.password;
-    delete article.favoritedBy;
-    return article;
+  buildCommentResponse(comment: CommentEntity): ICommentResponse {
+    comment = this.serialization(comment);
+
+    return { comment };
+  }
+
+  serialization<T extends ArticleEntity | CommentEntity>(data: T): T {
+    delete data.author.id;
+    delete data.author.email;
+    delete data.author.password;
+    if (data instanceof ArticleEntity) {
+      delete data.id;
+      delete data.favoritedBy;
+    } else {
+      delete data.article;
+    }
+    return data;
   }
 }

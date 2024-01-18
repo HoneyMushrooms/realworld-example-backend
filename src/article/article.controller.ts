@@ -19,6 +19,8 @@ import { CreateArticleDto } from './dto/createArticle.dto';
 import { UserEntity } from 'src/user/entity/user.entity';
 import { IArticleResponse } from './types/articleResponse.interface';
 import { UpdateArticleDto } from './dto/updateArticle.dto';
+import { CreateCommentDto } from './dto/createComment.dto';
+import { ICommentResponse } from './types/commentResponse.inteface';
 
 @Controller('articles')
 export class ArticleController {
@@ -26,11 +28,11 @@ export class ArticleController {
 
   @Get()
   @UsePipes(new ValidationPipe())
-  async findAll(
-    @Query() queryParams: any,
-    @User('id') userId?: number,
-  ): Promise<any> {
-    const articlesData = await this.articleServise.findAll(queryParams, userId);
+  async findAllArticle(@Query() queryParams: any, @User('id') userId?: number) {
+    const articlesData = await this.articleServise.findAllArticle(
+      queryParams,
+      userId,
+    );
     return articlesData;
   }
 
@@ -101,5 +103,36 @@ export class ArticleController {
       slug,
     );
     return this.articleServise.buildArticleResponse(article);
+  }
+
+  @Post(':slug/comments')
+  @UseGuards(AuthGuard)
+  @UsePipes(new ValidationPipe())
+  async createComment(
+    @User() user: UserEntity,
+    @Body('comment') createCommentDto: CreateCommentDto,
+    @Param('slug') slug: string,
+  ): Promise<ICommentResponse> {
+    const comment = await this.articleServise.createComment(
+      createCommentDto,
+      user,
+      slug,
+    );
+    return this.articleServise.buildCommentResponse(comment);
+  }
+
+  @Delete(':slug/comments/:id')
+  @UseGuards(AuthGuard)
+  @HttpCode(204)
+  async deleteComment(
+    @User('id') userId: number,
+    @Param('id') commentId: number,
+  ): Promise<void> {
+    await this.articleServise.deleteComment(userId, commentId);
+  }
+  
+  @Get(':slug/comments')
+  async findAllComments(@Param('slug') slug: string) {
+    return this.articleServise.findAllComment(slug);
   }
 }
