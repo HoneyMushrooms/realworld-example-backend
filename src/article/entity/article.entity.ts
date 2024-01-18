@@ -6,9 +6,10 @@ import {
   CreateDateColumn,
   ManyToOne,
   ManyToMany,
-  JoinTable,
+  OneToMany,
 } from 'typeorm';
 import { UserEntity } from 'src/user/entity/user.entity';
+import { CommentEntity } from 'src/article/entity/comment.entity';
 
 @Entity({ name: 'articles' })
 export class ArticleEntity {
@@ -48,5 +49,8 @@ export class ArticleEntity {
   @ManyToMany(() => UserEntity, (user) => user.favorites)
   favoritedBy: UserEntity[];
 
-  favorited: boolean = false; // для совместимости, лцучше конечно отдельный тип сделать;
+  @OneToMany(() => CommentEntity, (comment) => comment.article)
+  comments: CommentEntity[];
+
+  favorited: boolean = false; // для совместимости, лцучше конечно отдельный тип сделать;;
 }

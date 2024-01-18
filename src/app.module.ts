@@ -7,6 +7,7 @@ import { ArticleModule } from './article/article.module';
 import { UserModule } from './user/user.module';
 import { UserEntity } from './user/entity/user.entity';
 import { ArticleEntity } from './article/entity/article.entity';
+import { CommentEntity } from './article/entity/comment.entity';
 
 @Module({
   imports: [
@@ -22,7 +23,7 @@ import { ArticleEntity } from './article/entity/article.entity';
         password: сonfigService.get('DB_PASSWORD'),
         database: сonfigService.get('DB_NAME'),
         synchronize: true,
-        entities: [TagEntity, UserEntity, ArticleEntity],
+        entities: [TagEntity, UserEntity, ArticleEntity, CommentEntity],
       }),
       inject: [ConfigService],
     }),
